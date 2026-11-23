@@ -39,7 +39,7 @@ h2{font-size:15px;margin:22px 0 8px}
 <main>
 <h1>쇼츠 성공 사례 목록</h1>
 <p class="sub">영화·드라마 쇼츠 성공 사례와, 인기·명작 순위 목록 모음. 한국(KR)과 미국(US)을 나눠 봅니다.</p>
-<div class="bar" id="nav"><button id="n1" class="on" onclick="tab(1)">쇼츠 성공 사례</button><button id="n2" onclick="tab(2)">인기·명작 순위 목록</button></div>
+<div class="bar" id="nav"><button id="n1" class="on" onclick="tab(1)">쇼츠 성공 사례</button><button id="n2" onclick="tab(2)">인기·명작 순위 목록</button><button id="n3" onclick="tab(3)">보유 작품</button></div>
 <div id="p1">
 <div class="tiers" id="tiers"></div>
 <div class="bar" id="bar"></div>
@@ -49,13 +49,15 @@ h2{font-size:15px;margin:22px 0 8px}
 <div class="list" id="list"></div>
 </div>
 <div id="p2" style="display:none"><div class="bar" id="lbar"></div><p class="sub" id="lnote"></p><div class="list" id="llist"></div></div>
+<div id="p3" style="display:none"><div class="bar" id="obar"></div><p class="sub" id="onote"></p><div class="list" id="olist"></div></div>
 <p class="foot">쇼츠 집계는 검색으로 찾아 열어본 34건 기준이며 전체 통계가 아닙니다. 순위 목록은 각 출처의 표시값을 옮긴 것입니다. 조회수는 조사일(2026-11) 표시값입니다. 링크는 원본 유튜브 영상입니다.</p>
 </main>
 <script>
 const T=[[1000000,'100만+'],[5000000,'500만+'],[10000000,'1,000만+']];
 let D=[],f={tier:0,market:'',kind:'',work:'',q:'',sort:'views'};
 const fmt=n=>n>=1e8?(n/1e8).toFixed(2).replace(/\.?0+$/,'')+'억':(n/1e4).toLocaleString()+'만';
-let LS=[],cur=0,lq='';
+let LS=[],cur=0,lq='',OW=[],of={sub:'',chk:'',grp:'',q:'',sort:'title'};
+fetch('owned.json').then(r=>r.json()).then(d=>{OW=d;renderO()});
 fetch('lists.json').then(r=>r.json()).then(d=>{LS=d;renderL()});
 fetch('data.json').then(r=>r.json()).then(d=>{D=d;render()});
 function ok(c,skip){return c.views>=T[f.tier][0]&&(skip==='market'||!f.market||c.market===f.market)&&(skip==='kind'||!f.kind||c.kind===f.kind)&&(!f.work||c.work===f.work)&&(!f.q||(c.title+c.channel+c.work+c.takeaway).toLowerCase().includes(f.q.toLowerCase()))}
@@ -73,7 +75,13 @@ function renderList(){
  document.getElementById('count').textContent=`${T[f.tier][1]} · ${a.length}건`;
  document.getElementById('list').innerHTML=a.map(c=>`<div class="item"><div class="v">${c.views_label}<small>${c.len_s?Math.round(c.len_s)+'초':''}</small></div><div class="t"><span class="tag ${c.market}">${c.market==='KR'?'한국':'미국'}</span><a href="${c.url}" target="_blank" rel="noopener">${c.title}</a><div class="meta">${c.kind==='drama'?'드라마':'영화'}${c.work?' · '+c.work:''}${c.channel?' · '+c.channel:''}${c.type?' · '+c.type:''}</div>${c.takeaway?`<div class="tk">${c.takeaway}</div>`:''}</div></div>`).join('')||'<p class="sub">해당 사례 없음</p>';
 }
-function tab(n){document.getElementById('p1').style.display=n===1?'':'none';document.getElementById('p2').style.display=n===2?'':'none';n1.className=n===1?'on':'';n2.className=n===2?'on':''}
+function tab(n){for(const i of [1,2,3]){document.getElementById('p'+i).style.display=i===n?'':'none';document.getElementById('n'+i).className=i===n?'on':''}}
+function renderO(){const b=(l,k,v)=>`<button class="${of[k]===v?'on':''}" onclick="of.${k}='${v}';renderO()">${l}</button>`;
+ document.getElementById('obar').innerHTML=b('전체','sub','')+b('자막 있음','sub','y')+b('자막 없음','sub','n')+' '+b('MCU 제외','grp','x')+b('MCU만','grp','m')+b('확인 필요','chk','y')+`<input placeholder="제목·감독 검색" value="${of.q}" oninput="of.q=this.value;renderOL()"><select onchange="of.sort=this.value;renderOL()"><option value="title">제목순</option><option value="year">연도순</option><option value="size">용량순</option></select>`;renderOL()}
+function renderOL(){let a=OW.filter(o=>(!of.sub||(of.sub==='y')===o.has_sub)&&(!of.chk||o.note)&&(!of.grp||(of.grp==='m')===(o.group==='MCU'))&&(!of.q||(o.title+o.director).toLowerCase().includes(of.q.toLowerCase())));
+ a.sort((x,y)=>of.sort==='year'?(x.year||9999)-(y.year||9999):of.sort==='size'?y.size_gb-x.size_gb:x.title.localeCompare(y.title,'ko'));
+ document.getElementById('onote').textContent=`${a.length}편 / 전체 ${OW.length}편 · 파일 221개(같은 작품 파일이 여러 개인 경우 합침). 연도·감독은 파일명을 보고 정리한 것이라 '확인 필요' 표시가 있는 항목은 틀릴 수 있습니다. 모두 영화이고 드라마 시리즈는 없습니다.`;
+ document.getElementById('olist').innerHTML=a.map(o=>`<div class="item"><div class="v">${o.year||'?'}<small>${o.size_gb}GB${o.files>1?' · 파일 '+o.files:''}</small></div><div class="t"><b>${o.title}</b><div class="meta">${o.director}${o.group==='MCU'?' · MCU':''} · ${o.has_sub?[o.subs.length?'자막 파일 '+o.subs.join('/'):'',o.emb.length?'영상 내장 '+o.emb.join(', '):''].filter(x=>x).join(' · '):'자막 없음'}</div>${o.note?`<div class="tk">⚠ ${o.note}</div>`:''}</div></div>`).join('')||'<p class="sub">없음</p>'}
 function renderL(){const l=LS[cur];if(!l)return;
  document.getElementById('lbar').innerHTML=LS.map((x,i)=>`<button class="${i===cur?'on':''}" onclick="cur=${i};renderL()">${x.name} (${x.items.length})</button>`).join('')+`<input placeholder="목록 안에서 검색" value="${lq}" oninput="lq=this.value;renderLL()">`;
  document.getElementById('lnote').innerHTML=`${l.market} · ${l.source} · <a href="${l.url}" target="_blank" rel="noopener">출처</a><br>${l.note}`;renderLL()}
