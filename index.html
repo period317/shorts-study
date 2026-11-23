@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>쇼츠 성공 사례 목록</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--line:#e3e3dd;--acc:#2a5bd7;--kr:#d9480f;--us:#1c7ed6}
+@media(prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ececE6;--mut:#9a9a92;--card:#1f1f1c;--line:#34342f;--acc:#7aa2ff;--kr:#ff8f5a;--us:#74b3ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,"Malgun Gothic",sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 20px;font-size:13px}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.tier{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer}
+.tier.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.tier b{font-size:26px;display:block}.tier span{color:var(--mut);font-size:12px}
+.tier .split{margin-top:4px;font-size:12px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.bar button,.bar input,.bar select{font:inherit;padding:6px 10px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px}
+.bar button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.bar input{flex:1;min-width:140px}
+h2{font-size:15px;margin:22px 0 8px}
+.works{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:3px 10px;font-size:13px;cursor:pointer}
+.chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.list{display:grid;gap:8px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:76px 1fr;gap:10px}
+.v{font-weight:700;font-size:17px}.v small{display:block;font-weight:400;font-size:11px;color:var(--mut)}
+.t a{color:var(--fg);text-decoration:none;font-weight:600}.t a:hover{color:var(--acc)}
+.meta{font-size:12px;color:var(--mut);margin-top:2px}
+.tag{display:inline-block;padding:0 6px;border-radius:5px;font-size:11px;color:#fff;margin-right:4px}
+.tag.KR{background:var(--kr)}.tag.US{background:var(--us)}
+.tk{font-size:13px;margin-top:4px}
+.foot{margin-top:28px;color:var(--mut);font-size:12px}
+@media(max-width:560px){.tiers{grid-template-columns:1fr}.item{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>쇼츠 성공 사례 목록</h1>
+<p class="sub">영화·드라마 쇼츠 중 직접 열어 확인한 사례. 조회수 구간별로 세고, 한국(KR)과 미국(US)을 나눠 봅니다.</p>
+<div class="tiers" id="tiers"></div>
+<div class="bar" id="bar"></div>
+<h2>작품별 (제목에서 작품이 확인된 것만)</h2>
+<div class="works" id="works"></div>
+<h2 id="count"></h2>
+<div class="list" id="list"></div>
+<p class="foot">집계는 검색으로 찾아 열어본 34건 기준이며 전체 통계가 아닙니다. 조회수는 조사일(2026-11) 표시값입니다. 링크는 원본 유튜브 영상입니다.</p>
+</main>
+<script>
+const T=[[1000000,'100만+'],[5000000,'500만+'],[10000000,'1,000만+']];
+let D=[],f={tier:0,market:'',kind:'',work:'',q:'',sort:'views'};
+const fmt=n=>n>=1e8?(n/1e8).toFixed(2).replace(/\.?0+$/,'')+'억':(n/1e4).toLocaleString()+'만';
+fetch('data.json').then(r=>r.json()).then(d=>{D=d;render()});
+function ok(c,skip){return c.views>=T[f.tier][0]&&(skip==='market'||!f.market||c.market===f.market)&&(skip==='kind'||!f.kind||c.kind===f.kind)&&(!f.work||c.work===f.work)&&(!f.q||(c.title+c.channel+c.work+c.takeaway).toLowerCase().includes(f.q.toLowerCase()))}
+function render(){
+ document.getElementById('tiers').innerHTML=T.map((t,i)=>{const a=D.filter(c=>c.views>=t[0]);const k=a.filter(c=>c.market==='KR').length;return `<div class="tier ${f.tier===i?'on':''}" onclick="f.tier=${i};render()"><span>${t[1]}</span><b>${a.length}건</b><div class="split">한국 ${k} · 미국 ${a.length-k}</div></div>`}).join('');
+ const mk=(label,key,val)=>`<button class="${f[key]===val?'on':''}" onclick="f.${key}='${val}';render()">${label}</button>`;
+ document.getElementById('bar').innerHTML=mk('전체','market','')+mk('한국','market','KR')+mk('미국','market','US')+' '+mk('전체 종류','kind','')+mk('드라마','kind','drama')+mk('영화','kind','movie')+
+  `<input placeholder="검색(제목·채널·작품)" value="${f.q}" oninput="f.q=this.value;renderList()"><select onchange="f.sort=this.value;renderList()"><option value="views">조회수순</option><option value="len">짧은순</option></select>`;
+ const ws={};D.filter(c=>c.work&&ok(c)||c.work&&c.views>=T[f.tier][0]).forEach(c=>{ws[c.work]=(ws[c.work]||0)+1});
+ document.getElementById('works').innerHTML=Object.entries(ws).map(([w,n])=>`<span class="chip ${f.work===w?'on':''}" onclick="f.work=f.work==='${w}'?'':'${w}';render()">${w} ${n}</span>`).join('')||'<span class="sub">없음</span>';
+ renderList();
+}
+function renderList(){
+ let a=D.filter(c=>ok(c));a.sort((x,y)=>f.sort==='len'?(x.len_s||999)-(y.len_s||999):y.views-x.views);
+ document.getElementById('count').textContent=`${T[f.tier][1]} · ${a.length}건`;
+ document.getElementById('list').innerHTML=a.map(c=>`<div class="item"><div class="v">${c.views_label}<small>${c.len_s?Math.round(c.len_s)+'초':''}</small></div><div class="t"><span class="tag ${c.market}">${c.market==='KR'?'한국':'미국'}</span><a href="${c.url}" target="_blank" rel="noopener">${c.title}</a><div class="meta">${c.kind==='drama'?'드라마':'영화'}${c.work?' · '+c.work:''}${c.channel?' · '+c.channel:''}${c.type?' · '+c.type:''}</div>${c.takeaway?`<div class="tk">${c.takeaway}</div>`:''}</div></div>`).join('')||'<p class="sub">해당 사례 없음</p>';
+}
+</script>
+</body>
+</html>
